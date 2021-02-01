@@ -1,5 +1,6 @@
 {
   "name": "elves",
+  "private": true,
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
@@ -19,5 +20,8 @@
   "homepage": "https://github.com/Octo1996/elves#readme",
   "devDependencies": {
     "lerna": "^3.22.1"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }
