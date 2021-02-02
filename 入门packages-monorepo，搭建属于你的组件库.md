@@ -10,8 +10,8 @@
 每一个部分以第x部分开头，主要内容如下，按需食用，此外，每一部分都会涉及到其他一些仓库，欢迎评论探讨：
 
 + 第一部分 **lerna**的大体认识和项目结构组织；
-+ 第二部分 关键打包工具的介绍和使用；
-+ 第三部分 **rollup**的配置；
++ 第二部分 关键打包工具和插件的介绍以及使用；
++ 第三部分 文件结构和**rollup**的配置；
 
 + 第四部分 谈谈**docs**怎么写；
 
@@ -122,6 +122,7 @@ npx lerna clean
   ```bash
   # 当安装某个包的时候，使用--scope可以让包仅安装到对仓库的依赖下
   npx lerna add elves --scope=docs
+  ```
 ```
   
   ```diff
@@ -133,6 +134,96 @@ npx lerna clean
       vue: "^3.0.5"
     }
   }
-  ```
-  
-  
+```
+
+  另外，`lerna link` 也是可以用的，这个命令可以使内部的包形成相互之间的引用关系，像是各个项目里使用了`yarn link`一样。
+
+## 第二部分 打包工具和插件介绍
+
+此monorepo是基于rollup打包的，所以插件都是选用的rollup-plugin：
+
++ **rollup-plugin-typescript2** [jump](https://www.npmjs.com/package/rollup-plugin-typescript2)：fork 自**rollup-plugin-typescript**（已经停止维护并永久迁移至新仓库**@rollup/plugin-typescript**），相比于官方仓库，它更慢了，但是更强了，typescript2额外地提供了语法提示和语义诊断
+
+  > This version is somewhat slower than original, but it will print out typescript syntactic and semantic diagnostic messages (the main reason for using typescript after all).
+
++ **rollup-plugin-postcss** [jump](https://www.npmjs.com/package/rollup-plugin-postcss)：PostCSS 我称他为万能的神，在我最头疼css兼容性的时候是他拯救了我，同时，postcss支持很多非常有意思的css处理插件，[TailwindCSS](https://tailwindcss.com/docs/adding-base-styles)是其一，因为从头开始写一个主题系统，写一个Grid系统太麻烦了，我们将站在巨人的肩膀上写库，tailwind自带PuregeCSS，自动处理删减冗余的css，酸爽。
++ [TailwindCSS](https://tailwindcss.com/docs/adding-base-styles) 是一个工具优先的PostCSS插件集合，这意味着可以和其他任何PostCSS插件配合使用。同时，内置了很多组合css的指令，提高css的综合利用；Tailwind自带了各种css的预处理插件，写class类名就能编写精美的样式非常方便，更多的内容，点击移步至官网查看
++ **@rollup/plugin-replace** [jump](https://www.npmjs.com/package/@rollup/plugin-replace)：这个工具非常有用，替换打包文件内的字符串，能干啥？比如你在代码里写了 `__bundle_env__ === "production"`， 那么可以使用这个工具，把`__bundle_env__`的值更换成任意你想要的值，比如development， production等，没错，类似webpack的cross-env，但是更强，所有你想替换的字符串，都可以使用这个工具替换。
+
+### 什么是'esm', 'cjs', 'umd'
+
+设么是打包？至今为止，打包的目的都是为了开发时方便，编译时能将各个模块的文件组装到一起，公用模块的同时，不会产生命名冲突，即解决模块和作用域问题。
+
++ **cjs**：cjs 是 **Common js**的缩写，目前主要使用在nodejs（如果不配置esm模式的话）。看一眼下面的代码应该就很熟悉了。cjs加载时同步的，所以可以在任何地方引用模块并使用；cjs的引入是**copy**，所以，导出的对象是拷贝的，不会影响原对象，而为esmodule会；cjs不能在浏览器使用，需要转化；
+
+```js
+//importing 
+const doSomething = require('./doSomething.js'); 
+
+//exporting
+module.exports = function doSomething(n) {
+  // do something
+}
+```
+
++ **amd**：**Asynchronous Module Definition**，异步加载模块，就像cjs适用node一样，amd适用前端，关于细节，可以查看[这篇博客](https://tagneto.blogspot.com/2011/04/on-inventing-js-module-formats-and.html)。
+
+```js
+define(['module1', 'module2'], function (module1, module2) {
+    //定义模块，然后再导出
+    return function () {};
+});
+```
+
+
+
++ **umd**：**Universal Module Definition**，代表通用模块定义，就是前后端通用，主要用于工具类，算法类库；通过闭包函数处理局部作用域，参数传递模块，入口出口鲜明；使用amd时，不易于rollup或webpack配合打包，一般用于备用（一般谁手写这个）：
+
+```js
+(function (root, factory) {
+    if (typeof define === "function" && define.amd) {
+        define(["jquery", "underscore"], factory);
+    } else if (typeof exports === "object") {
+        module.exports = factory(require("jquery"), require("underscore"));
+    } else {
+        root.Requester = factory(root.$, root._);
+    }
+}(this, function ($, _) {
+    var Requester = { // ... };
+
+    return Requester;
+}));
+```
+
++ **esm**：现代的js的标准模块化解决方案，原生js需要在script上加`type = 'module'`。现代浏览器支持；拥有和CJS类似的写法，AMD格式的异步加载方式；使bundler易于tree-shaking等。
+
+写起来是这样：
+
+```js
+import { foo, bar } from "./mylib"
+//...
+export function func1() {}
+export function func2() {}
+export default {}
+```
+
+所以，了解了这些，就可以根据我们的需要填加和配置打包了。
+
+首先，作为一个库，要支持全量引入，比如`import elvesform "elves"`，也要支持单独引入某个组件`import { Button } from "elves"`， 所以我们需要同时支持cjs 和 esm打包，这样就可以支持自动tree-shaking了。
+
+## 第三部分 配置文件结构和rollup打包
+
+由于cjs是要支持模块化引入的，所以cjs打包的入口是不同于全量打包的入口的，常规的文件结构如下：
+
+```js
+elves
+  ├─ src
+     ├─ components
+     │   ├─ Button.ts
+     │   └─ index.ts
+     ├─ cjs.ts   // 打包cjs入口
+     └─ index.ts // 打包umd格式入口
+  ├─ package.josn
+  └─ README.md
+```
+
