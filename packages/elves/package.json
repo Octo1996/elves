@@ -1,12 +1,11 @@
 {
   "name": "elves",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "keywords": [],
   "author": "Octo1996 <Octo1996@outlook.com>",
   "homepage": "https://github.com/Octo1996/elves/tree/master/packages/elves#readme",
-  "license": "ISC",
-  "main": "lib/elves.js",
+  "license": "lib/index.js",
   "directories": {
     "lib": "lib",
     "test": "__tests__"

@@ -27,6 +27,7 @@
     "url": "https://github.com/Octo1996/elves/issues"
   },
   "dependencies": {
+    "elves": "^0.0.1",
     "vue": "^3.0.5"
   }
 }
